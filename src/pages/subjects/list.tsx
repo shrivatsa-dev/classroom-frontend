@@ -100,6 +100,7 @@ const SubjectsList = () => {
       },
     },
   });
+ 
   return (
     <ListView>
       <Breadcrumb />
