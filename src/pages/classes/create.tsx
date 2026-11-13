@@ -1,7 +1,7 @@
 import { CreateView } from "@/components/refine-ui/views/create-view";
 import { Breadcrumb } from "@/components/refine-ui/layout/breadcrumb";
 import { Button } from "@/components/ui/button";
-import { useBack } from "@refinedev/core";
+import { useBack, useList } from "@refinedev/core";
 import { Separator } from "@/components/ui/separator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Controller } from "react-hook-form";
@@ -26,12 +26,17 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import UploadWidget from "@/components/upload-widget";
+import { Subject, User } from "@/types";
 
 const ClassesCreate = () => {
   const back = useBack();
 
   const form = useForm({
     resolver: zodResolver(classSchema),
+    defaultValues: {
+      status: "active",
+      capacity: 30,
+    },
     refineCoreProps: {
       resource: "classes",
       action: "create",
@@ -39,14 +44,15 @@ const ClassesCreate = () => {
   });
 
   const {
+    refineCore: { onFinish },
     handleSubmit,
     formState: { isSubmitting, errors },
     control,
   } = form;
 
-  const onSubmit = (values: z.infer<typeof classSchema>) => {
+  const onSubmit = async (values: z.infer<typeof classSchema>) => {
     try {
-      console.log(values);
+      await onFinish(values);
     } catch (e) {
       console.log("Error creating new classes", e);
     }
@@ -66,66 +72,30 @@ const ClassesCreate = () => {
       });
     }
   };
-  const teachers = [
-    {
-      id: "1",
-      name: "John Doe",
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-    },
-    {
-      id: "3",
-      name: "Michael Brown",
-    },
-    {
-      id: "4",
-      name: "Emily Davis",
-    },
-    {
-      id: "5",
-      name: "David Wilson",
-    },
-    {
-      id: "6",
-      name: "Sarah Johnson",
-    },
-  ];
 
-  const subjects = [
-    {
-      id: "1",
-      name: "Computer Science",
-      code: "CS",
+  const { query: subjectsQuery } = useList<Subject>({
+    resource: "subjects",
+    pagination: {
+      pageSize: 100,
     },
-    {
-      id: "2",
-      name: "Mathematics",
-      code: "MATH",
+  });
+
+  const { query: teacherQuery } = useList<User>({
+    resource: "users",
+    filters: [{ field: "role", operator: "eq", value: "teacher" }],
+    pagination: {
+      pageSize: 100,
     },
-    {
-      id: "3",
-      name: "Physics",
-      code: "PHY",
-    },
-    {
-      id: "4",
-      name: "Chemistry",
-      code: "CHEM",
-    },
-    {
-      id: "5",
-      name: "Electrical Engineering",
-      code: "EE",
-    },
-    {
-      id: "6",
-      name: "Mechanical Engineering",
-      code: "ME",
-    },
-  ];
+  });
+
+  const subjects = subjectsQuery?.data?.data ?? [];
+  const subjectsLoading = subjectsQuery.isLoading;
+
+  const teachers = teacherQuery?.data?.data ?? [];
+  const teachersLoading = teacherQuery.isLoading;
+
   const bannerPublicId = form.watch("bannerCldPubId");
+
   return (
     <CreateView className="class-view">
       <Breadcrumb />
@@ -147,7 +117,7 @@ const ClassesCreate = () => {
             <form
               id="form-rhf-demo"
               className="space-y-5"
-              onSubmit={handleSubmit(() => onSubmit)}
+              onSubmit={handleSubmit(onSubmit)}
             >
               <Controller
                 name="bannerUrl"
@@ -163,9 +133,7 @@ const ClassesCreate = () => {
                           ? { url: field.value, publicId: bannerPublicId ?? "" }
                           : null
                       }
-                      onChange={(file: any) =>
-                        setBannerImage(file, field)
-                      }
+                      onChange={(file: any) => setBannerImage(file, field)}
                     />
                     {errors.bannerCldPubId && !errors.bannerUrl && (
                       <p className="text-destructive text-sm">
@@ -188,7 +156,7 @@ const ClassesCreate = () => {
                         {...field}
                         id="form-rhf-demo-title"
                         aria-invalid={fieldState.invalid}
-                        placeholder="Introductio to Biology - Section A"
+                        placeholder="Introduction to Biology - Section A"
                         autoComplete="off"
                       />
                       {fieldState.invalid && (
@@ -210,6 +178,7 @@ const ClassesCreate = () => {
                       <Select
                         onValueChange={(value) => field.onChange(Number(value))}
                         value={field?.value?.toString()}
+                        disabled={subjectsLoading}
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select a Subject" />
@@ -240,8 +209,9 @@ const ClassesCreate = () => {
                         Teacher<span className="text-orange-600">*</span>
                       </FieldLabel>
                       <Select
-                        onValueChange={(value) => field.onChange(Number(value))}
+                        onValueChange={(value) => field.onChange(value)}
                         value={field?.value?.toString()}
+                        disabled={teachersLoading}
                       >
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select a Teacher" />
@@ -269,7 +239,7 @@ const ClassesCreate = () => {
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="form-rhf-demo-title">
-                        Subject<span className="text-orange-600">*</span>
+                        Capacity<span className="text-orange-600">*</span>
                       </FieldLabel>
                       <Input
                         type="number"
@@ -296,10 +266,10 @@ const ClassesCreate = () => {
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="form-rhf-demo-title">
-                        Subject<span className="text-orange-600">*</span>
+                        Status<span className="text-orange-600">*</span>
                       </FieldLabel>
                       <Select
-                        onValueChange={(value) => field.onChange(Number(value))}
+                        onValueChange={(value) => field.onChange(value)}
                         value={field?.value?.toString()}
                       >
                         <SelectTrigger className="w-full">
